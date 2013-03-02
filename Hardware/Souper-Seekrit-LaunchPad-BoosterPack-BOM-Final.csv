@@ -1,0 +1,13 @@
+Reference Designators,Mfg Name,Mfg Part Number,Quantity
+U7,Switchcraft,35RAPC2BHN2,1
+C3 C5,Vishay,D100J20C0GL63L6R,2
+U3,Texas Instruments,LM324N,1
+J1 J2,Harwin,M20-7821046,2
+U4 U5,Texas Instruments,SN754410NE,2
+U6,Bourns,3296X-1-202LF,1
+C1 C2 C3,Lelon,REA100M1HBK-0511P,3
+R1,KOA Speer,MF1/4DCT52R1001F,1
+J3 J4 J5,TE Connectivity,282836-2,3
+U1,Texas Instruments,LM1086IT-5.0/NOPB,1
+U2,Texas Instruments,LM1086IT-3.3/NOPB,1
+U8,FCI,87520-0010BLF,1
