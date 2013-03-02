@@ -6,9 +6,6 @@
  *	6 - turn right
  *	2 - both backward
  * 
- * New code by Quinn Storm, some code taken from usci_serial code as included
- * license/copyright mentions.
- * New code available under the GPL version 3 or later
  */
 #define MOTOR_PERIOD 1000000
 #define PWM_PERIOD 100
