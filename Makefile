@@ -20,9 +20,11 @@ $(TARGET)/$(APP).elf: $(TARGET)/$(APP).o
 	msp430-size $(TARGET)/$(APP).elf
 	
 $(TARGET)/$(APP).o:	$(APP).cpp $(APP).h 
+	mkdir -p $(TARGET)/
 	$(CC) $(CFLAGS) -c -o $(TARGET)/$(APP).o $(APP).cpp
 	
 install: $(TARGET/$(APP).o
+	mkdir -p $(TARGET)/
 	mspdebug -q --force-reset rf2500 "prog $(TARGET)/$(APP).elf"
 
 clean:
