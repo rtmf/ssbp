@@ -14,6 +14,7 @@ TARGET=Debug
 all: $(TARGET)/$(APP).elf
 
 $(TARGET)/$(APP).elf: $(TARGET)/$(APP).o
+	mkdir -p $(TARGET)/
 	$(CC) $(CFLAGS) -o $(TARGET)/$(APP).elf $(TARGET)/$(APP).o
 	msp430-objdump -DS $(TARGET)/$(APP).elf >$(TARGET)/$(APP).lst
 	msp430-size $(TARGET)/$(APP).elf
