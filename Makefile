@@ -10,23 +10,29 @@ CFLAGS=-mmcu=$(MCU) -O2 -g -Wall
 
 APP=msp430-ssbp
 TARGET=Debug
+SOURCES=$(APP).cpp
+HEADERS=
+FILES=$(SOURCES) $(HEADERS)
 
-all: $(TARGET)/$(APP).elf
+all: $(TARGET)/$(APP)
 
-$(TARGET)/$(APP).elf: $(TARGET)/$(APP).o
+jpop: $(TARGET)/jpop
+
+$(TARGET)/jpop:		$(FILES)
 	mkdir -p $(TARGET)/
-	$(CC) $(CFLAGS) -o $(TARGET)/$(APP).elf $(TARGET)/$(APP).o
-	msp430-objdump -DS $(TARGET)/$(APP).elf >$(TARGET)/$(APP).lst
-	msp430-size $(TARGET)/$(APP).elf
+	$(CC) $(CFLAGS) -DJPOP -o $(TARGET)/jpop $(SOURCES)
+
+$(TARGET)/$(APP):	$(FILES)
+	mkdir -p $(TARGET)/
+	$(CC) $(CFLAGS) -o $(TARGET)/$(APP) $(SOURCES)
 	
-$(TARGET)/$(APP).o:	$(APP).cpp $(APP).h 
-	mkdir -p $(TARGET)/
-	$(CC) $(CFLAGS) -c -o $(TARGET)/$(APP).o $(APP).cpp
-	
-install: $(TARGET/$(APP).o
-	mkdir -p $(TARGET)/
-	mspdebug -q --force-reset rf2500 "prog $(TARGET)/$(APP).elf"
+install:		$(TARGET)/$(APP) $(FILES)
+	mspdebug -q --force-reset rf2500 "prog $(TARGET)/$(APP)"
+
+install-jpop:		$(TARGET)/jpop $(FILES)
+	mspdebug -q --force-reset rf2500 "prog $(TARGET)/jpop"
 
 clean:
-	rm -f $(TARGET)/$(APP).o $(TARGET)/$(APP).elf $(TARGET)/$(APP).lst
+	rm -f $(TARGET)/$(APP) 
+	rm -f $(TARGET)/jpop
 	mkdir -p $(TARGET)/

@@ -94,8 +94,8 @@ struct Serial {
      *        P1.1 = RX PIN, P1.2 = TX PIN
      */
     inline void init() {
-        P1SEL = BIT1 + BIT2; // P1.1=RXD, P1.2=TXD
-        P1SEL2 = BIT1 + BIT2; // P1.1=RXD, P1.2=TXD
+        P1SEL = BIT1; // P1.1=RXD, P1.2=TXD
+        P1SEL2 = BIT1; // P1.1=RXD, P1.2=TXD
 
         UCA0CTL1 |= UCSSEL_2; // use SMCLK for USCI clock
         UCA0BR0 = 130; // 16MHz 9600
