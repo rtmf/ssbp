@@ -23,8 +23,8 @@
 //TODO implement this
 #define LEFT_SCALE 1
 #define RIGHT_SCALE 1
-//tune MOTOR_PERIOD to be a reasonable distance for each 'j' command
-//#define MOTOR_PERIOD 10000
+//tune MOTOR_TIME to be a reasonable distance for each 'j' command
+//#define MOTOR_TIME 10000
 
 #define PWM_PERIOD 256
 
@@ -40,7 +40,7 @@
 #define PWM_CLOCK 8192
 
 int timer=15;
-#define MOTOR_PERIOD (timer<<5)
+#define MOTOR_TIME (timer<<5)
 int POWER=PWM_PERIOD-1;
 int RPOWER=POWER/2;
 #define PDM
@@ -85,7 +85,7 @@ int servoPin[servoCount] = {SERVO_A_PIN,SERVO_B_PIN};
 //PIN1 is RX
 #define AUDIO_IN_PIN BIT1
 
-long int MOTOR_LEFT=0;
+long int MOTOR_TIMER=0;
 ringbuffer_ui8_16 usci_buffer = { 0, 0, { 0 } };
 
 Serial<ringbuffer_ui8_16> usci0 = { usci_buffer };
@@ -162,8 +162,8 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 
 void pulseDrive()
 {
-	if (MOTOR_LEFT>0)
-		MOTOR_LEFT--;
+	if (MOTOR_TIMER>0)
+		MOTOR_TIMER--;
 	else
 	{
 		len=OFF;
@@ -227,11 +227,10 @@ void pulseDrive()
 
 void setDrive(int leftEnable,int leftAmt,int leftDir,int rightEnable,int rightAmt,int rightDir)
 {
-	//TODO don't ignore Amt
 	if (leftEnable==OFF && rightEnable==OFF)
-		MOTOR_LEFT=0;
+		MOTOR_TIMER=0;
 	else
-		MOTOR_LEFT=MOTOR_PERIOD;
+		MOTOR_TIMER=MOTOR_TIME;
 	len=leftEnable;
 	ren=rightEnable;
 	ldir=leftDir;
