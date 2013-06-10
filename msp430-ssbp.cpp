@@ -5,6 +5,7 @@
  * if command character is missing, treat as j command
  * command types:
  *  d: set speed, range: 0-127
+ *  q: set speed for turning and reverse single tread turning
  *  /: ? ('timermax')
  *  c: servo1 control, range: 0-255
  *  v: servo2 control, range: 0-255
@@ -25,7 +26,7 @@
 //tune MOTOR_PERIOD to be a reasonable distance for each 'j' command
 //#define MOTOR_PERIOD 10000
 
-#define PWM_PERIOD 128
+#define PWM_PERIOD 256
 
 #define RED_LED BIT0
 
@@ -36,10 +37,13 @@
 //this flips the numeric keypad from phone layout to numpad layout
 
 
-#define PWM_CLOCK 2048
+#define PWM_CLOCK 8192
 
 int timer=15;
-#define MOTOR_PERIOD (timer<<7)
+#define MOTOR_PERIOD (timer<<5)
+int POWER=PWM_PERIOD-1;
+int RPOWER=POWER/2;
+#define PDM
 #ifdef JPOP
 
 //all pins are on PORT1
@@ -51,7 +55,6 @@ int timer=15;
 
 #define FORWARD 1
 #define REVERSE 0
-int POWER=PWM_PERIOD;
 #else
 
 #define SERVO
@@ -68,7 +71,6 @@ int POWER=PWM_PERIOD;
 
 #define FORWARD 0
 #define REVERSE 1
-int POWER=PWM_PERIOD/2;
 #endif
 
 #ifdef SERVO
@@ -95,9 +97,14 @@ int strlen(char * s)
 	return len;
 }
 
-int lpq=0, lrate=PWM_PERIOD/2, rpq=0, rrate=PWM_PERIOD/2;
+int lrate=PWM_PERIOD/2, rrate=PWM_PERIOD/2;
 
 int len=OFF,ren=OFF,ldir=0,rdir=0;
+#ifdef PDM
+int lpq=0, rpq=0;
+#else
+int pwm=0;
+#endif
 int commands_waiting=0;
 interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 	char c;
@@ -113,6 +120,9 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 			break;
 		case 'D':
 			c='d';
+			break;
+		case 'Q':
+			c='q';
 			break;
 		case 'V':
 			c='v';
@@ -140,6 +150,7 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 		case 'v':
 		case 'j':
 		case 'l':
+		case 'q':
 		case '/':
 			break;
 		default:
@@ -162,12 +173,22 @@ void pulseDrive()
 		ldir=FORWARD;
 		rdir=FORWARD;
 	}
+#ifndef PDM
+	pwm++;
+	if (pwm>=PWM_PERIOD) pwm=0;
+#endif
 	if (len==ON)
 	{
+#ifdef PDM
 		lpq+=lrate;
 		if (lpq>=PWM_PERIOD)
+#else
+		if (pwm<=lrate)
+#endif
 		{
+#ifdef PDM
 			lpq-=PWM_PERIOD;
+#endif
 			JPOUT |= LEFT_PWM_PIN;
 		}
 		else
@@ -177,10 +198,16 @@ void pulseDrive()
 		JPOUT &= ~LEFT_PWM_PIN;
 	if (ren==ON)
 	{
+#ifdef PDM
 		rpq+=rrate;
 		if (rpq>=PWM_PERIOD)
+#else
+		if (pwm<=rrate)
+#endif
 		{
+#ifdef PDM
 			rpq-=PWM_PERIOD;
+#endif
 			P1OUT |= RIGHT_PWM_PIN;
 		}
 		else
@@ -211,6 +238,9 @@ void setDrive(int leftEnable,int leftAmt,int leftDir,int rightEnable,int rightAm
 	rdir=rightDir;
 	lrate=leftAmt;
 	rrate=rightAmt;
+#ifndef PDM
+	pwm=0;
+#endif
 	pulseDrive();
 }
 void driveCommand(int value)
@@ -228,13 +258,13 @@ void driveCommand(int value)
 			setDrive(ON,POWER,FORWARD,OFF,0,REVERSE);
 			break;
 		case 1:
-			setDrive(OFF,0,FORWARD,ON,POWER,REVERSE);
+			setDrive(OFF,0,FORWARD,ON,RPOWER,REVERSE);
 			break;
 		case 2:
 			setDrive(ON,POWER,REVERSE,ON,POWER,REVERSE);
 			break;
 		case 3:
-			setDrive(ON,POWER,REVERSE,OFF,0,FORWARD);
+			setDrive(ON,RPOWER,REVERSE,OFF,0,FORWARD);
 			break;
 #else
 		case 1:
@@ -247,20 +277,20 @@ void driveCommand(int value)
 			setDrive(ON,POWER,FORWARD,OFF,0,REVERSE);
 			break;
 		case 7:
-			setDrive(OFF,0,FORWARD,ON,POWER,REVERSE);
+			setDrive(OFF,0,FORWARD,ON,RPOWER,REVERSE);
 			break;
 		case 8:
 			setDrive(ON,POWER,REVERSE,ON,POWER,REVERSE);
 			break;
 		case 9:
-			setDrive(ON,POWER,REVERSE,OFF,0,FORWARD);
+			setDrive(ON,RPOWER,REVERSE,OFF,0,FORWARD);
 			break;
 #endif
 		case 6:
-			setDrive(ON,POWER,FORWARD,ON,POWER,REVERSE);
+			setDrive(ON,RPOWER,FORWARD,ON,RPOWER,REVERSE);
 			break;
 		case 4:
-			setDrive(ON,POWER,REVERSE,ON,POWER,FORWARD);
+			setDrive(ON,RPOWER,REVERSE,ON,RPOWER,FORWARD);
 			break;
 		case 5:
 		case 0:
@@ -271,14 +301,19 @@ void driveCommand(int value)
 }
 void handleCommand(int value, char command_type)
 {
+	P1OUT ^= RED_LED;
 	switch(command_type)
 	{
 		case 'j':
 			driveCommand(value);
 			break;
+		case 'q':
+			if (value>127) value=127;
+			RPOWER=value*2;
+			break;
 		case 'd':
 			if (value>127) value=127;
-			POWER=value;
+			POWER=value*2;
 			break;
 		case 'l':
 			if (value)
@@ -304,7 +339,7 @@ void handleCommand(int value, char command_type)
 void readCommand()
 {
 	int value=0;
-	char command_type='j';
+	char command_type='\0';
 	char c;
 	int len=0;
 	if (commands_waiting)
@@ -313,14 +348,14 @@ void readCommand()
 			c=usci0.recv();
 			if (c>='0' && c<='9')
 			{
-				if (value) value*=10;
+				value*=10;
 				value+=(c-'0');
 				len++;
 			}
 			else if (c=='\n')
 			{
 				commands_waiting--;
-				if (len>0) handleCommand(value,command_type);
+				if (len>0 && command_type != '\0') handleCommand(value,command_type);
 				break;
 			}
 			else
@@ -345,22 +380,24 @@ int state = 0;
 int curServo = 0;
 void handleServos(void)
 {
-	if((state % 4 == 0) && (state < servoCount * 4))
+	if((state % 64 == 0))
 	{
-		curServo = state >> 2;
-
-		P1OUT |= servoPin[curServo];
-		TA1CCR0 = (servoLoc[curServo]<<2) + 1000;
-		TA1CTL = TASSEL_2 + MC_1 + TAIE + TACLR + OUT;
-		TA1CCTL0 |= CCIE; 
+		curServo = state >> 6;
+		if (curServo<servoCount)
+		{
+			TA1CCR0 = (servoLoc[curServo]*(2000/256)) + 2000;
+			TA1CTL = TASSEL_2 + ID_3 + MC_1 + TAIE + TACLR + OUT;
+			TA1CCTL0 |= CCIE; 
+			P1OUT |= servoPin[curServo];
+		}
 	}
 	state++;
-	if (state>=40) state=0;
+	if (state>=(40<<4)) state=0;
 }
 interrupt(TIMER1_A0_VECTOR) CCR0_ISR(void) 
 {
 	TA1CTL = MC_0;                             // timer A off, interrupt disabled 
-	P1OUT &= ~(SERVO_A_PIN | SERVO_B_PIN);
+	if (curServo<servoCount) P1OUT &= ~(servoPin[curServo]);
 	CCTL0 &= ~CCIFG;
 }
  
