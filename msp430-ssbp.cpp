@@ -11,6 +11,9 @@
  *  v: servo2 control, range: 0-255
  *  j: motor control, phone keypad layout, 0 or 5 to stop
  *  l: red LED control, 0=off, other value=on
+ *  z: left motor power for differential drive
+ *  x: right motor power for differential drive
+ *  s: differential drive joystick command
  */
 #include <msp430.h>
 #include <legacymsp430.h>
@@ -37,12 +40,15 @@
 //this flips the numeric keypad from phone layout to numpad layout
 
 
-#define PWM_CLOCK 8192
+#define PULSE_DIVIDE 32
+#define PWM_CLOCK 8192/PULSE_DIVIDE
 
 int timer=15;
 #define MOTOR_TIME (timer<<5)
 int POWER=PWM_PERIOD-1;
-int RPOWER=POWER/2;
+int REVPOWER=POWER/2;
+int LEFTPOWER=PWM_PERIOD-1;
+int RIGHTPOWER=PWM_PERIOD-1;
 #define PDM
 #ifdef JPOP
 
@@ -130,6 +136,15 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 		case 'L':
 			c='l';
 			break;
+		case 'Z':
+			c='z';
+			break;
+		case 'X':
+			c='x';
+			break;
+		case 'S':
+			c='s';
+			break;
 		case '\r':
 		case '\n':
 			c='\n';
@@ -151,6 +166,9 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 		case 'j':
 		case 'l':
 		case 'q':
+		case 'z':
+		case 'x':
+		case 's':
 		case '/':
 			break;
 		default:
@@ -242,6 +260,63 @@ void setDrive(int leftEnable,int leftAmt,int leftDir,int rightEnable,int rightAm
 #endif
 	pulseDrive();
 }
+void differentialDriveCommand(int value)
+{
+	switch(value)
+	{
+#ifdef FLIP
+		case 7:
+			setDrive(OFF,0,REVERSE,ON,RIGHTPOWER,FORWARD);
+			break;
+		case 8:
+			setDrive(ON,LEFTPOWER,FORWARD,ON,RIGHTPOWER,FORWARD);
+			break;
+		case 9:
+			setDrive(ON,LEFTPOWER,FORWARD,OFF,0,REVERSE);
+			break;
+		case 1:
+			setDrive(OFF,0,FORWARD,ON,RIGHTPOWER,REVERSE);
+			break;
+		case 2:
+			setDrive(ON,LEFTPOWER,REVERSE,ON,RIGHTPOWER,REVERSE);
+			break;
+		case 3:
+			setDrive(ON,LEFTPOWER,REVERSE,OFF,0,FORWARD);
+			break;
+#else
+		case 1:
+			setDrive(OFF,0,REVERSE,ON,RIGHTPOWER,FORWARD);
+			break;
+		case 2:
+			setDrive(ON,LEFTPOWER,FORWARD,ON,RIGHTPOWER,FORWARD);
+			break;
+		case 3:
+			setDrive(ON,LEFTPOWER,FORWARD,OFF,0,REVERSE);
+			break;
+		case 7:
+			setDrive(OFF,0,FORWARD,ON,RIGHTPOWER,REVERSE);
+			break;
+		case 8:
+			setDrive(ON,LEFTPOWER,REVERSE,ON,RIGHTPOWER,REVERSE);
+			break;
+		case 9:
+			setDrive(ON,LEFTPOWER,REVERSE,OFF,0,FORWARD);
+			break;
+#endif
+		case 6:
+			setDrive(ON,LEFTPOWER,FORWARD,ON,RIGHTPOWER,REVERSE);
+			break;
+		case 4:
+			setDrive(ON,LEFTPOWER,REVERSE,ON,RIGHTPOWER,FORWARD);
+			break;
+		case 5:
+		case 0:
+		default:
+			setDrive(OFF,0,FORWARD,OFF,0,FORWARD);
+			break;
+	}
+
+}
 void driveCommand(int value)
 {
 	switch(value)
@@ -257,13 +332,13 @@ void driveCommand(int value)
 			setDrive(ON,POWER,FORWARD,OFF,0,REVERSE);
 			break;
 		case 1:
-			setDrive(OFF,0,FORWARD,ON,RPOWER,REVERSE);
+			setDrive(OFF,0,FORWARD,ON,REVPOWER,REVERSE);
 			break;
 		case 2:
 			setDrive(ON,POWER,REVERSE,ON,POWER,REVERSE);
 			break;
 		case 3:
-			setDrive(ON,RPOWER,REVERSE,OFF,0,FORWARD);
+			setDrive(ON,REVPOWER,REVERSE,OFF,0,FORWARD);
 			break;
 #else
 		case 1:
@@ -276,20 +351,20 @@ void driveCommand(int value)
 			setDrive(ON,POWER,FORWARD,OFF,0,REVERSE);
 			break;
 		case 7:
-			setDrive(OFF,0,FORWARD,ON,RPOWER,REVERSE);
+			setDrive(OFF,0,FORWARD,ON,REVPOWER,REVERSE);
 			break;
 		case 8:
 			setDrive(ON,POWER,REVERSE,ON,POWER,REVERSE);
 			break;
 		case 9:
-			setDrive(ON,RPOWER,REVERSE,OFF,0,FORWARD);
+			setDrive(ON,REVPOWER,REVERSE,OFF,0,FORWARD);
 			break;
 #endif
 		case 6:
-			setDrive(ON,RPOWER,FORWARD,ON,RPOWER,REVERSE);
+			setDrive(ON,REVPOWER,FORWARD,ON,REVPOWER,REVERSE);
 			break;
 		case 4:
-			setDrive(ON,RPOWER,REVERSE,ON,RPOWER,FORWARD);
+			setDrive(ON,REVPOWER,REVERSE,ON,REVPOWER,FORWARD);
 			break;
 		case 5:
 		case 0:
@@ -308,11 +383,22 @@ void handleCommand(int value, char command_type)
 			break;
 		case 'q':
 			if (value>127) value=127;
-			RPOWER=value*2;
+			REVPOWER=value*2;
 			break;
 		case 'd':
 			if (value>127) value=127;
 			POWER=value*2;
+			break;
+		case 'z':
+			if (value>127) value=127;
+			LEFTPOWER=value*2;
+			break;
+		case 'x':
+			if (value>127) value=127;
+			RIGHTPOWER=value*2;
+			break;
+		case 's':
+			differentialDriveCommand(value);
 			break;
 		case 'l':
 			if (value)
@@ -362,10 +448,15 @@ void readCommand()
 		}
 	}
 }
-
+int pulseTicker=0;
 interrupt(TIMER0_A0_VECTOR) Timer0_A0 (void) // pwm timer
 {
-	pulseDrive();
+	pulseTicker++;
+	if (pulseTicker>PULSE_DIVIDE)
+	{
+		pulseDrive();
+		pulseTicker=0;
+	}
 	readCommand();
         CCTL0 &= ~CCIFG;
 }
