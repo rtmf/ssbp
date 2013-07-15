@@ -40,8 +40,7 @@
 //this flips the numeric keypad from phone layout to numpad layout
 
 
-#define PULSE_DIVIDE 32
-#define PWM_CLOCK 8192/PULSE_DIVIDE
+#define PWM_CLOCK 8192
 
 int timer=15;
 #define MOTOR_TIME (timer<<5)
@@ -178,8 +177,11 @@ interrupt(USCIAB0RX_VECTOR) USCI0RX_ISR(void) {
 	if (c!='\0') usci_buffer.push_back(c);
 }
 
+int doDrive=0;
 void pulseDrive()
 {
+	if (doDrive==0) return;
+	doDrive=0;
 	if (MOTOR_TIMER>0)
 		MOTOR_TIMER--;
 	else
@@ -258,7 +260,7 @@ void setDrive(int leftEnable,int leftAmt,int leftDir,int rightEnable,int rightAm
 #ifndef PDM
 	pwm=0;
 #endif
-	pulseDrive();
+	//pulseDrive();
 }
 void differentialDriveCommand(int value)
 {
@@ -448,28 +450,26 @@ void readCommand()
 		}
 	}
 }
-int pulseTicker=0;
+//int pulseTicker=0;
 interrupt(TIMER0_A0_VECTOR) Timer0_A0 (void) // pwm timer
 {
-	pulseTicker++;
-	if (pulseTicker>PULSE_DIVIDE)
-	{
-		pulseDrive();
-		pulseTicker=0;
-	}
-	readCommand();
+	doDrive=1;
         CCTL0 &= ~CCIFG;
 }
 #ifdef SERVO
+int doServos = 0;
 interrupt(WDT_VECTOR) WDT_ISR(void)
 {
-	__bic_SR_register_on_exit(LPM0_bits);     // Exit LPM0
+//	__bic_SR_register_on_exit(LPM0_bits);     // Exit LPM0
 	CCTL0 &= ~CCIFG;
+	doServos=1;
 }
 int state = 0;
 int curServo = 0;
 void handleServos(void)
 {
+	if (doServos==0) return;
+	doServos=0;
 	if((state % 64 == 0))
 	{
 		curServo = state >> 6;
@@ -523,16 +523,17 @@ int main(void) {
 	TA0CCR0 = PWM_CLOCK; // PWM clock - fast as possible
 	TA0CCTL0 = 0x10; // interrupt enable
 	TA0CTL = TASSEL_2 + MC_1; // system clock (16MHz), count UP
-
-#ifdef SERVO
+	__bis_SR_register(GIE);
 	while(true)
 	{
-		__bis_SR_register(GIE+LPM0_bits); // interrupts enabled
+//		__bis_SR_register(GIE+LPM0_bits); // interrupts enabled
+#ifdef SERVO
 		handleServos();
-	}
-#else
-	__bis_SR_register(GIE+LPM0_bits); // interrupts enabled
 #endif
+		readCommand();
+		pulseDrive();
+	}
+//	__bis_SR_register(GIE+LPM0_bits); // interrupts enabled
 	return 0;
 }
 
